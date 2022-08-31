@@ -1,0 +1,120 @@
+<?php
+
+require_once __DIR__ . '/../../../config/bootstrap.php';
+
+if (!isset($_GET['id']) || !isset($_GET['task_id'])) {
+    redirect(url_for('/tut_8/index.php'));
+}
+
+$task_id = (int)$_GET['task_id'];
+$id = (int)$_GET['id'];
+
+// This is your Web service server WSDL URL address
+$wsdl = "http://localhost/tut_8/server.php?wsdl";
+
+// Create client object
+$client = new nusoap_client($wsdl, 'wsdl');
+$client->soap_defencoding = 'utf-8';
+$err = $client->getError();
+
+if ($err) {
+    die('<h2>Constructor error</h2>' . $err);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $operation = 'updateSubtask';
+
+    $subtask = array();
+    $subtask['id'] = $id;
+    $subtask['task_id'] = $task_id;
+    $subtask['title'] = $_POST['title'] ? $_POST['title'] : '';
+    $subtask['description'] = $_POST['description'] ? $_POST['description'] : '';
+    $subtask['deadline'] = $_POST['deadline'] ? $_POST['deadline'] : '';
+    $subtask['isComplete'] = $_POST['isComplete'] ? $_POST['isComplete'] : 0;
+
+    $subtask['isComplete'] = (bool) $subtask['isComplete'];
+
+    $message = array('subtask' => $subtask);
+    $response = $client->call($operation, $message);
+    $err = $client->getError();
+
+    if ($err) {
+        die('<h2>Constructor error</h2>' . $err);
+    }
+
+    if ($response['status'] !== 'success') {
+        exit($response['message']);
+    }
+
+    redirect(url_for('/tut_8/view.php?id=' . safe_html(urlencode($task_id))));
+}
+
+$operation = 'getSubtask';
+$message = array('id' => $id, 'task_id' => $task_id);
+$response = $client->call($operation, $message);
+$err = $client->getError();
+
+if ($err) {
+    die('<h2>Constructor error</h2>' . $err);
+}
+
+if ($response['status'] !== 'success') {
+    exit($response['message']);
+}
+
+$subtask = $response['results'][0];
+
+?>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title><?php safe_html($tutorials[8]['name'])?></title>
+</head>
+<body>
+<header>
+    <h1><?php safe_html($tutorials[8]['name'])?></h1>
+</header>
+<main>
+    <div class="container">
+        <a class="back-link" href="<?php echo url_for('/tut_8/view.php?id=' . safe_html(urlencode($task_id))); ?>">&laquo; Back to List</a>
+        <br/>
+        <br/>
+        <p>Edit task</p>
+        <br/>
+
+        <p><b>Subtask ID:</b> <?php echo safe_html($subtask['id']); ?></p>
+        <?php $urlParams = "task_id=" . urlencode($subtask['task_id']) . "&id=" . urlencode($subtask['id']); ?>
+        <form action="<?php echo url_for('/tut_8/subtask/edit.php?' . safe_html($urlParams)); ?>" method="post">
+            <dl>
+                <dt>Title:</dt>
+                <dd><input type="text" name="title" value="<?php echo safe_html($subtask['title']); ?>" /></dd>
+            </dl>
+            <dl>
+                <dt>Description:</dt>
+                <dd><input type="text" name="description" value="<?php echo safe_html($subtask['description']); ?>" /></dd>
+            </dl>
+            <dl>
+                <dt>Deadline:</dt>
+                <dd><input type="text" name="deadline" value="<?php echo safe_html($subtask['deadline']); ?>" /></dd>
+            </dl>
+            <dl>
+                <dt>Complete:</dt>
+                <dd>
+                    <input type="hidden" name="isComplete" value="0" />
+                    <input type="checkbox" name="isComplete" value="1"<?php if($subtask['isComplete'] === true) { echo " checked"; } ?> />
+                </dd>
+            </dl>
+            <div>
+                <input type="submit" value="Save" />
+            </div>
+        </form>
+
+    </div>
+</main>
+<footer></footer>
+</body>
+</html>
